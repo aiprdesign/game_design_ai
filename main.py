@@ -36,17 +36,18 @@ def setup_sidebar():
 
     replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
     
-    # Dropdown for image generation model selection
+    # Dropdown for image generation model selection with three options
     img_model_choice = st.sidebar.selectbox(
         "Select Image Generation Model",
-        ["ByteDance SDXL Lightning 4Step", "Any ComfyUI Workflow"],
+        ["ByteDance SDXL Lightning 4Step", "Any ComfyUI Workflow", "Stability AI SDXL"],
         index=0
     )
     if img_model_choice == "ByteDance SDXL Lightning 4Step":
         image_model_id = "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637"
-    else:
-        # Updated model identifier with owner "fofr"
+    elif img_model_choice == "Any ComfyUI Workflow":
         image_model_id = "fofr/any-comfyui-workflow:ac793ee8fe34411d9cb3b0b3138152b6da8f7ebd178defaebe4b910ea3b16703"
+    else:
+        image_model_id = "stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc"
         
     st.sidebar.markdown("""
     ### 🚀 Getting Started
