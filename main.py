@@ -2,6 +2,9 @@ import streamlit as st
 import openai
 import replicate
 import os
+import requests
+from PIL import Image
+from io import BytesIO
 
 # Initialize session state
 if 'output' not in st.session_state:
@@ -17,14 +20,12 @@ if 'output' not in st.session_state:
 def setup_sidebar():
     st.sidebar.title("🔑 API Keys")
     
-    # Dropdown to select OpenAI or DeepSeek
     provider = st.sidebar.selectbox(
         "Select Text Generation Provider",
         ["DeepSeek", "OpenAI"],
-        index=0  # Default to DeepSeek
+        index=0
     )
     
-    # API key inputs
     if provider == "OpenAI":
         api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
         replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
@@ -44,154 +45,20 @@ def setup_sidebar():
     """)
     return provider, api_key, replicate_api_key, deepseek_api_key
 
-# Check API connection for text generation
-def check_text_api_connection(provider, api_key):
-    if provider == "OpenAI":
-        try:
-            openai.api_key = api_key
-            openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": "Test connection"}],
-                max_tokens=5
-            )
-            return True
-        except Exception as e:
-            st.error(f"OpenAI API connection failed: {e}")
-            return False
-    elif provider == "DeepSeek":
-        try:
-            # Replace with actual DeepSeek API test call
-            # Example: Assume DeepSeek has a similar test endpoint
-            return True
-        except Exception as e:
-            st.error(f"DeepSeek API connection failed: {e}")
-            return False
-    return False
-
-# Check API connection for image generation
-def check_image_api_connection(replicate_api_key):
+def display_image_safely(image_url):
+    """Safely display an image from a URL in Streamlit"""
     try:
-        os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
-        # Test Replicate API with a simple call
-        replicate.run(
-            "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
-            input={"prompt": "Test connection", "num_outputs": 1}
-        )
-        return True
+        response = requests.get(image_url)
+        if response.status_code == 200:
+            image = Image.open(BytesIO(response.content))
+            st.image(image, caption="Generated Game Art")
+        else:
+            st.error(f"Failed to load image. Status code: {response.status_code}")
     except Exception as e:
-        st.error(f"Replicate API connection failed: {e}")
-        return False
+        st.error(f"Error displaying image: {str(e)}")
 
-# Main app UI
-def setup_main_ui():
-    st.title("🎮 AI-Powered Game Design Studio")
-    st.markdown("""
-    Welcome to your AI-powered game design studio! Share your ideas, and our team of AI specialists will craft a detailed game concept for you.
-    """)
+# The rest of your functions remain the same until the main() function
 
-# Collect user inputs
-def get_game_details():
-    st.subheader("📝 Game Details")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        vibe = st.selectbox(
-            "Game Vibe",
-            ["Epic fantasy with dragons", "Post-apocalyptic wasteland", "Cyberpunk city", "Medieval kingdom", "Space exploration"]
-        )
-        genre = st.selectbox("Genre", ["RPG", "Action", "Adventure", "Puzzle", "Strategy", "Simulation", "Platform", "Horror"])
-        audience = st.selectbox("Audience", ["Kids (7-12)", "Teens (13-17)", "Young Adults (18-25)", "Adults (26+)", "All Ages"])
-        perspective = st.selectbox("Perspective", ["First Person", "Third Person", "Top Down", "Side View", "Isometric"])
-        multiplayer = st.selectbox("Multiplayer", ["Single Player", "Local Co-op", "Online Multiplayer", "Both Local and Online"])
-
-    with col2:
-        goal = st.selectbox(
-            "Game Goal",
-            [
-                "Save the kingdom from eternal winter",
-                "Defeat the evil empire",
-                "Explore uncharted planets",
-                "Build and manage a thriving city",
-                "Survive in a post-apocalyptic world",
-                "Solve ancient mysteries",
-                "Become the greatest hero of all time"
-            ]
-        )
-        art_style = st.selectbox("Art Style", ["Realistic", "Cartoon", "Pixel Art", "Stylized", "Low Poly", "Anime", "Hand-drawn"])
-        platforms = st.multiselect("Platforms", ["PC", "Mobile", "PlayStation", "Xbox", "Nintendo Switch", "Web Browser"])
-        dev_time = st.slider("Development Time (months)", 1, 36, 12)
-        budget = st.number_input("Budget (USD)", min_value=0, value=10000, step=5000)
-
-    st.subheader("🎨 Additional Preferences")
-    col3, col4 = st.columns(2)
-
-    with col3:
-        mechanics = st.multiselect(
-            "Core Mechanics",
-            ["Combat", "Exploration", "Puzzle Solving", "Resource Management", "Base Building", "Stealth", "Racing", "Crafting"]
-        )
-        mood = st.multiselect(
-            "Mood/Atmosphere",
-            ["Epic", "Mysterious", "Peaceful", "Tense", "Humorous", "Dark", "Whimsical", "Scary"]
-        )
-
-    with col4:
-        inspirations = st.text_area("Inspirations (comma-separated)", "")
-        unique_features = st.text_area("Unique Features", "")
-
-    detail_level = st.selectbox("Detail Level", ["Low", "Medium", "High"])
-
-    return {
-        "vibe": vibe,
-        "genre": genre,
-        "goal": goal,
-        "audience": audience,
-        "perspective": perspective,
-        "multiplayer": multiplayer,
-        "art_style": art_style,
-        "platforms": platforms,
-        "dev_time": dev_time,
-        "budget": budget,
-        "mechanics": mechanics,
-        "mood": mood,
-        "inspirations": inspirations,
-        "unique_features": unique_features,
-        "detail_level": detail_level
-    }
-
-# Generate text using OpenAI
-def generate_with_openai(prompt, api_key):
-    openai.api_key = api_key
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=1000
-    )
-    return response.choices[0].message['content']
-
-# Generate text using DeepSeek
-def generate_with_deepseek(prompt, api_key):
-    # Replace with DeepSeek API call
-    # Example placeholder (replace with actual API call)
-    return f"DeepSeek response for: {prompt}"
-
-# Generate image using Replicate (ByteDance SDXL-Lightning-4Step)
-def generate_image_with_replicate(prompt, api_key):
-    os.environ["REPLICATE_API_TOKEN"] = api_key
-    output = replicate.run(
-        "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
-        input={
-            "prompt": prompt,
-            "num_outputs": 1,
-            "width": 1024,
-            "height": 1024,
-            "scheduler": "K_EULER",
-            "num_inference_steps": 4
-        }
-    )
-    return output[0]
-
-# Main function
 def main():
     provider, openai_api_key, replicate_api_key, deepseek_api_key = setup_sidebar()
     setup_main_ui()
@@ -213,7 +80,7 @@ def main():
         st.sidebar.error("❌ Image API Not Connected")
 
     if not text_api_connected or not image_api_connected:
-        return  # Stop execution if APIs are not connected
+        return
 
     if st.button("🚀 Generate Game Concept"):
         with st.spinner("🧠 AI team is brainstorming your game concept..."):
@@ -236,26 +103,31 @@ def main():
             - Unique Features: {inputs['unique_features']}
             - Detail Level: {inputs['detail_level']}
             """
-            if provider == "OpenAI":
-                st.session_state.output['story'] = generate_with_openai(prompt, openai_api_key)
-            else:
-                st.session_state.output['story'] = generate_with_deepseek(prompt, deepseek_api_key)
+            
+            try:
+                if provider == "OpenAI":
+                    st.session_state.output['story'] = generate_with_openai(prompt, openai_api_key)
+                else:
+                    st.session_state.output['story'] = generate_with_deepseek(prompt, deepseek_api_key)
 
-            # Generate image using Replicate
-            image_prompt = f"{inputs['vibe']}, {inputs['art_style']}, {inputs['mood']}"
-            st.session_state.output['image_url'] = generate_image_with_replicate(image_prompt, replicate_api_key)
+                # Generate image using Replicate
+                image_prompt = f"{inputs['vibe']}, {inputs['art_style']}, {inputs['mood']}"
+                st.session_state.output['image_url'] = generate_image_with_replicate(image_prompt, replicate_api_key)
+                
+                st.success("🎉 Game concept generated successfully!")
 
-        st.success("🎉 Game concept generated successfully!")
+                # Display outputs
+                with st.expander("📖 Story Design"):
+                    st.markdown(st.session_state.output['story'])
 
-        # Display outputs
-        with st.expander("📖 Story Design"):
-            st.markdown(st.session_state.output['story'])
-
-        with st.expander("🖼️ Generated Image"):
-            if st.session_state.output['image_url']:
-                st.image(st.session_state.output['image_url'], caption="Generated Game Art")
-            else:
-                st.error("Failed to generate image. Please check your Replicate API key.")
+                with st.expander("🖼️ Generated Image"):
+                    if st.session_state.output['image_url']:
+                        display_image_safely(st.session_state.output['image_url'])
+                    else:
+                        st.error("Failed to generate image. Please check your Replicate API key.")
+                        
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
     main()
