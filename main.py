@@ -3,6 +3,8 @@ import openai
 import replicate
 import os
 import requests
+import random
+import datetime
 from PIL import Image
 from io import BytesIO
 
@@ -26,7 +28,7 @@ def setup_sidebar():
         index=0  # Default to DeepSeek
     )
     
-    # API key input based on provider
+    # API key input based on provider selection
     if provider == "DeepSeek":
         deepseek_api_key = st.sidebar.text_input("Enter your DeepSeek API Key", type="password")
         openai_api_key = None
@@ -192,8 +194,17 @@ def generate_with_openai(prompt, api_key):
         return f"Fallback Text for prompt: {prompt}"
 
 def generate_with_deepseek(prompt, api_key):
-    # Placeholder DeepSeek function; replace with an actual API call as needed.
-    return f"DeepSeek response for: {prompt}"
+    # Placeholder DeepSeek function that returns random text with a date stamp.
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    random_text_options = [
+         "Here is a quick overview of your game concept.",
+         "Your game idea sounds innovative and exciting.",
+         "The concept looks promising and full of potential.",
+         "A fascinating concept that pushes creative boundaries.",
+         "Your game design sparks creativity and offers unique gameplay."
+    ]
+    random_text = random.choice(random_text_options)
+    return f"{random_text} (Generated on {now})"
 
 # Image generation function
 def generate_image_with_replicate(prompt, api_key, image_model_id):
