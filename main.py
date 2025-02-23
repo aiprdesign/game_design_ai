@@ -26,7 +26,7 @@ def setup_sidebar():
         index=0  # Default to DeepSeek
     )
     
-    # API key input based on provider selection
+    # API key input based on provider
     if provider == "DeepSeek":
         deepseek_api_key = st.sidebar.text_input("Enter your DeepSeek API Key", type="password")
         openai_api_key = None
@@ -192,7 +192,7 @@ def generate_with_openai(prompt, api_key):
         return f"Fallback Text for prompt: {prompt}"
 
 def generate_with_deepseek(prompt, api_key):
-    # Placeholder DeepSeek function; replace with actual API call as needed.
+    # Placeholder DeepSeek function; replace with an actual API call as needed.
     return f"DeepSeek response for: {prompt}"
 
 # Image generation function
@@ -215,7 +215,7 @@ def generate_image_with_replicate(prompt, api_key, image_model_id):
         st.error(f"Image generation failed: {e}")
         return f"Stage Description: {prompt}"
 
-# Display image or fallback text
+# Display image (or fallback text)
 def display_image(image_data):
     if image_data.startswith("http"):
         try:
@@ -234,6 +234,7 @@ def main():
     setup_main_ui()
     inputs = get_game_details()
     
+    # API Connection Test Buttons in Sidebar
     if st.sidebar.button("🔍 Check API Connections"):
         text_connected = check_text_api_connection(provider, openai_api_key, deepseek_api_key)
         image_connected = check_image_api_connection(replicate_api_key, image_model_id)
@@ -245,7 +246,33 @@ def main():
             st.sidebar.success("✅ Image API Connected")
         else:
             st.sidebar.error("❌ Image API Not Connected")
+    
+    # Test Text Generation Button in Sidebar
+    if st.sidebar.button("Test Text Generation"):
+        test_prompt = "This is a test prompt for text generation."
+        if provider == "OpenAI":
+            test_text = generate_with_openai(test_prompt, openai_api_key)
+        else:
+            test_text = generate_with_deepseek(test_prompt, deepseek_api_key)
+        st.sidebar.markdown("### Test Text Generation Output")
+        st.sidebar.markdown(test_text)
+    
+    # Test Image Generation Button in Sidebar
+    if st.sidebar.button("Test Image Generation"):
+        test_img = generate_image_with_replicate("This is a test prompt for image generation.", replicate_api_key, image_model_id)
+        st.sidebar.markdown("### Test Image Generation Output")
+        if test_img.startswith("http"):
+            try:
+                response = requests.get(test_img)
+                response.raise_for_status()
+                img = Image.open(BytesIO(response.content))
+                st.sidebar.image(img, caption="Test Image")
+            except Exception as e:
+                st.sidebar.error(f"Failed to load test image: {e}")
+        else:
+            st.sidebar.markdown(test_img)
             
+    # Main Generate Button for Game Concept
     if st.button("🚀 Generate Game Concept"):
         with st.spinner("Generating your game concept..."):
             # Generate Story
