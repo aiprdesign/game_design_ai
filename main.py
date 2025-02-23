@@ -13,12 +13,26 @@ if 'output' not in st.session_state:
         'image_url': ''
     }
 
-# Sidebar for API keys
+# Sidebar for API keys and provider selection
 def setup_sidebar():
     st.sidebar.title("🔑 API Keys")
-    openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
-    replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
-    deepseek_api_key = st.sidebar.text_input("Enter your DeepSeek API Key", type="password")
+    
+    # Dropdown to select OpenAI or DeepSeek
+    provider = st.sidebar.selectbox(
+        "Select Text Generation Provider",
+        ["DeepSeek", "OpenAI"],
+        index=0  # Default to DeepSeek
+    )
+    
+    # API key inputs
+    if provider == "OpenAI":
+        api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
+        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
+        deepseek_api_key = None
+    else:
+        deepseek_api_key = st.sidebar.text_input("Enter your DeepSeek API Key", type="password")
+        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
+        api_key = None
 
     st.sidebar.markdown("""
     ### 🚀 Getting Started
@@ -28,7 +42,31 @@ def setup_sidebar():
     - **Art style and visuals**
     - **Technical requirements**
     """)
-    return openai_api_key, replicate_api_key, deepseek_api_key
+    return provider, api_key, replicate_api_key, deepseek_api_key
+
+# Check API connection
+def check_api_connection(provider, api_key):
+    if provider == "OpenAI":
+        try:
+            openai.api_key = api_key
+            openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": "Test connection"}],
+                max_tokens=5
+            )
+            return True
+        except Exception as e:
+            st.error(f"OpenAI API connection failed: {e}")
+            return False
+    elif provider == "DeepSeek":
+        try:
+            # Replace with actual DeepSeek API test call
+            # Example: Assume DeepSeek has a similar test endpoint
+            return True
+        except Exception as e:
+            st.error(f"DeepSeek API connection failed: {e}")
+            return False
+    return False
 
 # Main app UI
 def setup_main_ui():
@@ -127,16 +165,31 @@ def generate_image_with_replicate(prompt, api_key):
 
 # Main function
 def main():
-    openai_api_key, replicate_api_key, deepseek_api_key = setup_sidebar()
+    provider, openai_api_key, replicate_api_key, deepseek_api_key = setup_sidebar()
     setup_main_ui()
     inputs = get_game_details()
 
+    # Check API connection
+    if provider == "OpenAI":
+        api_key = openai_api_key
+        api_connected = check_api_connection(provider, api_key)
+    else:
+        api_key = deepseek_api_key
+        api_connected = check_api_connection(provider, api_key)
+
+    # Display connection status
+    if api_connected:
+        st.sidebar.success("✅ API Connected")
+    else:
+        st.sidebar.error("❌ API Not Connected")
+        return  # Stop execution if API is not connected
+
     if st.button("🚀 Generate Game Concept"):
-        if not openai_api_key or not replicate_api_key or not deepseek_api_key:
+        if not api_key or not replicate_api_key:
             st.error("Please enter all required API keys.")
         else:
             with st.spinner("🧠 AI team is brainstorming your game concept..."):
-                # Generate game concept using OpenAI
+                # Generate game concept
                 prompt = f"""
                 Create a game concept with:
                 - Vibe: {inputs['vibe']}
@@ -155,8 +208,10 @@ def main():
                 - Unique Features: {inputs['unique_features']}
                 - Detail Level: {inputs['detail_level']}
                 """
-                st.session_state.output['story'] = generate_with_openai(prompt, openai_api_key)
-                st.session_state.output['gameplay'] = generate_with_deepseek(prompt, deepseek_api_key)
+                if provider == "OpenAI":
+                    st.session_state.output['story'] = generate_with_openai(prompt, api_key)
+                else:
+                    st.session_state.output['story'] = generate_with_deepseek(prompt, api_key)
 
                 # Generate image using Replicate
                 image_prompt = f"{inputs['vibe']}, {inputs['art_style']}, {inputs['mood']}"
@@ -167,9 +222,6 @@ def main():
             # Display outputs
             with st.expander("📖 Story Design"):
                 st.markdown(st.session_state.output['story'])
-
-            with st.expander("🎮 Gameplay Mechanics"):
-                st.markdown(st.session_state.output['gameplay'])
 
             with st.expander("🖼️ Generated Image"):
                 st.image(st.session_state.output['image_url'], caption="Generated Game Art")
