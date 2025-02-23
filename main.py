@@ -13,7 +13,10 @@ if 'output' not in st.session_state:
         'gameplay': '', 
         'visuals': '', 
         'tech': '',
-        'image_url': ''
+        'image_urls': [],
+        'characters': [],
+        'stages': [],
+        'gdd': ''
     }
 
 # Sidebar for API keys and provider selection
@@ -103,7 +106,7 @@ def get_game_details():
             ["Epic fantasy with dragons", "Post-apocalyptic wasteland", "Cyberpunk city", "Medieval kingdom", "Space exploration"]
         )
         genre = st.selectbox("Genre", ["RPG", "Action", "Adventure", "Puzzle", "Strategy", "Simulation", "Platform", "Horror"])
-        audience = st.selectbox("Audience", ["Kids (7-12)", "Teens (13-17)", "Young Adults (18-25)", "Adults (26+)", "All Ages"])
+        audience = st.selectbox("Audience", ["Teens (13-17)", "Young Adults (18-25)", "Adults (26+)", "All Ages"])
         perspective = st.selectbox("Perspective", ["First Person", "Third Person", "Top Down", "Side View", "Isometric"])
         multiplayer = st.selectbox("Multiplayer", ["Single Player", "Local Co-op", "Online Multiplayer", "Both Local and Online"])
 
@@ -123,7 +126,7 @@ def get_game_details():
         art_style = st.selectbox("Art Style", ["Realistic", "Cartoon", "Pixel Art", "Stylized", "Low Poly", "Anime", "Hand-drawn"])
         platforms = st.multiselect("Platforms", ["PC", "Mobile", "PlayStation", "Xbox", "Nintendo Switch", "Web Browser"])
         dev_time = st.slider("Development Time (months)", 1, 36, 12)
-        budget = st.number_input("Budget (USD)", min_value=0, value=10000, step=5000)
+        num_stages = st.number_input("Number of Stages/Levels", min_value=1, max_value=20, value=8)
 
     st.subheader("🎨 Additional Preferences")
     col3, col4 = st.columns(2)
@@ -154,7 +157,7 @@ def get_game_details():
         "art_style": art_style,
         "platforms": platforms,
         "dev_time": dev_time,
-        "budget": budget,
+        "num_stages": num_stages,
         "mechanics": mechanics,
         "mood": mood,
         "inspirations": inspirations,
@@ -210,23 +213,20 @@ def main():
     setup_main_ui()
     inputs = get_game_details()
 
-    # Check API connections
-    text_api_connected = check_text_api_connection(provider, openai_api_key if provider == "OpenAI" else deepseek_api_key)
-    image_api_connected = check_image_api_connection(replicate_api_key)
+    # API Check Button
+    if st.sidebar.button("🔍 Check API Connections"):
+        text_api_connected = check_text_api_connection(provider, openai_api_key if provider == "OpenAI" else deepseek_api_key)
+        image_api_connected = check_image_api_connection(replicate_api_key)
 
-    # Display connection status
-    if text_api_connected:
-        st.sidebar.success("✅ Text API Connected")
-    else:
-        st.sidebar.error("❌ Text API Not Connected")
+        if text_api_connected:
+            st.sidebar.success("✅ Text API Connected")
+        else:
+            st.sidebar.error("❌ Text API Not Connected")
 
-    if image_api_connected:
-        st.sidebar.success("✅ Image API Connected")
-    else:
-        st.sidebar.error("❌ Image API Not Connected")
-
-    if not text_api_connected or not image_api_connected:
-        return  # Stop execution if APIs are not connected
+        if image_api_connected:
+            st.sidebar.success("✅ Image API Connected")
+        else:
+            st.sidebar.error("❌ Image API Not Connected")
 
     if st.button("🚀 Generate Game Concept"):
         with st.spinner("🧠 AI team is brainstorming your game concept..."):
@@ -242,7 +242,7 @@ def main():
             - Art Style: {inputs['art_style']}
             - Platforms: {', '.join(inputs['platforms'])}
             - Development Time: {inputs['dev_time']} months
-            - Budget: ${inputs['budget']:,}
+            - Number of Stages: {inputs['num_stages']}
             - Mechanics: {', '.join(inputs['mechanics'])}
             - Mood: {', '.join(inputs['mood'])}
             - Inspirations: {inputs['inspirations']}
@@ -254,21 +254,54 @@ def main():
             else:
                 st.session_state.output['story'] = generate_with_deepseek(prompt, deepseek_api_key)
 
-            # Generate image using Replicate
-            image_prompt = f"{inputs['vibe']}, {inputs['art_style']}, {inputs['mood']}"
-            st.session_state.output['image_url'] = generate_image_with_replicate(image_prompt, replicate_api_key)
+            # Generate images for game levels
+            st.session_state.output['image_urls'] = []
+            for i in range(inputs['num_stages']):
+                image_prompt = f"{inputs['vibe']}, {inputs['art_style']}, {inputs['mood']}, Level {i+1}"
+                image_url = generate_image_with_replicate(image_prompt, replicate_api_key)
+                st.session_state.output['image_urls'].append(image_url)
+
+            # Generate main character sheets
+            st.session_state.output['characters'] = []
+            for i in range(3):  # Generate 3 main characters
+                character_prompt = f"Create a main character for a {inputs['genre']} game with a {inputs['vibe']} vibe."
+                if provider == "OpenAI":
+                    character_sheet = generate_with_openai(character_prompt, openai_api_key)
+                else:
+                    character_sheet = generate_with_deepseek(character_prompt, deepseek_api_key)
+                st.session_state.output['characters'].append(character_sheet)
+
+            # Generate Game Design Document (GDD)
+            gdd_prompt = f"Create a Game Design Document (GDD) for a {inputs['genre']} game with a {inputs['vibe']} vibe."
+            if provider == "OpenAI":
+                st.session_state.output['gdd'] = generate_with_openai(gdd_prompt, openai_api_key)
+            else:
+                st.session_state.output['gdd'] = generate_with_deepseek(gdd_prompt, deepseek_api_key)
 
         st.success("🎉 Game concept generated successfully!")
 
-        # Display outputs
-        with st.expander("📖 Story Design"):
+        # Display outputs in tabs
+        tab1, tab2, tab3, tab4 = st.tabs(["Story Design", "Game Levels", "Main Characters", "GDD"])
+
+        with tab1:
+            st.subheader("📖 Story Design")
             st.markdown(st.session_state.output['story'])
 
-        with st.expander("🖼️ Generated Image"):
-            if st.session_state.output['image_url']:
-                display_image(st.session_state.output['image_url'])
-            else:
-                st.error("Failed to generate image. Please check your Replicate API key.")
+        with tab2:
+            st.subheader("🎮 Game Levels")
+            for i, image_url in enumerate(st.session_state.output['image_urls']):
+                st.markdown(f"### Level {i+1}")
+                display_image(image_url)
+
+        with tab3:
+            st.subheader("👤 Main Characters")
+            for i, character_sheet in enumerate(st.session_state.output['characters']):
+                st.markdown(f"### Character {i+1}")
+                st.markdown(character_sheet)
+
+        with tab4:
+            st.subheader("📄 Game Design Document (GDD)")
+            st.markdown(st.session_state.output['gdd'])
 
 if __name__ == "__main__":
     main()
