@@ -23,11 +23,11 @@ if 'output' not in st.session_state:
 def setup_sidebar():
     st.sidebar.title("🔑 API Keys")
     
-    # Dropdown to select OpenAI or DeepSeek
+    # Dropdown to select OpenAI or DeepSeek; default now set to OpenAI
     provider = st.sidebar.selectbox(
         "Select Text Generation Provider",
-        ["DeepSeek", "OpenAI"],
-        index=0  # Default to DeepSeek
+        ["OpenAI", "DeepSeek"],
+        index=0  # Default to OpenAI
     )
     
     # API key inputs
@@ -245,23 +245,23 @@ def main():
         with st.spinner("🧠 AI team is brainstorming your game concept..."):
             # Generate game concept story
             prompt = f"""
-            Create a game concept with:
-            - Vibe: {inputs['vibe']}
-            - Genre: {inputs['genre']}
-            - Goal: {inputs['goal']}
-            - Audience: {inputs['audience']}
-            - Perspective: {inputs['perspective']}
-            - Multiplayer: {inputs['multiplayer']}
-            - Art Style: {inputs['art_style']}
-            - Platforms: {', '.join(inputs['platforms'])}
-            - Development Time: {inputs['dev_time']} months
-            - Number of Stages: {inputs['num_stages']}
-            - Mechanics: {', '.join(inputs['mechanics'])}
-            - Mood: {', '.join(inputs['mood'])}
-            - Inspirations: {inputs['inspirations']}
-            - Unique Features: {inputs['unique_features']}
-            - Detail Level: {inputs['detail_level']}
-            """
+Create a game concept with:
+- Vibe: {inputs['vibe']}
+- Genre: {inputs['genre']}
+- Goal: {inputs['goal']}
+- Audience: {inputs['audience']}
+- Perspective: {inputs['perspective']}
+- Multiplayer: {inputs['multiplayer']}
+- Art Style: {inputs['art_style']}
+- Platforms: {', '.join(inputs['platforms'])}
+- Development Time: {inputs['dev_time']} months
+- Number of Stages: {inputs['num_stages']}
+- Mechanics: {', '.join(inputs['mechanics'])}
+- Mood: {', '.join(inputs['mood'])}
+- Inspirations: {inputs['inspirations']}
+- Unique Features: {inputs['unique_features']}
+- Detail Level: {inputs['detail_level']}
+"""
             if provider == "OpenAI":
                 st.session_state.output['story'] = generate_with_openai(prompt, openai_api_key)
             else:
@@ -297,7 +297,7 @@ def main():
         tab1, tab2, tab3, tab4 = st.tabs(["Story Design", "Game Levels", "Main Characters", "GDD"])
         with tab1:
             st.subheader("📖 Story Design")
-            st.markdown(st.session_state.output['story'])
+            st.markdown(st.session_state.output['story'] or "No story text generated.")
         with tab2:
             st.subheader("🎮 Game Levels")
             for i, image_data in enumerate(st.session_state.output['image_urls']):
@@ -310,7 +310,7 @@ def main():
                 st.markdown(character_sheet)
         with tab4:
             st.subheader("📄 Game Design Document (GDD)")
-            st.markdown(st.session_state.output['gdd'])
+            st.markdown(st.session_state.output['gdd'] or "No GDD text generated.")
 
 if __name__ == "__main__":
     main()
