@@ -23,7 +23,7 @@ if 'output' not in st.session_state:
 def setup_sidebar():
     st.sidebar.title("🔑 API Keys")
     
-    # Dropdown to select OpenAI or DeepSeek; default now set to OpenAI
+    # Dropdown to select text generation provider
     provider = st.sidebar.selectbox(
         "Select Text Generation Provider",
         ["OpenAI", "DeepSeek"],
@@ -40,6 +40,17 @@ def setup_sidebar():
         replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
         api_key = None
 
+    # New drop-down for image generation model selection
+    img_model_choice = st.sidebar.selectbox(
+        "Select Image Generation Model",
+        ["ByteDance SDXL Lightning 4Step", "Any ComfyUI Workflow"],
+        index=0
+    )
+    if img_model_choice == "ByteDance SDXL Lightning 4Step":
+        image_model_id = "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637"
+    else:
+        image_model_id = "any-comfyui-workflow:ac793ee8fe34411d9cb3b0b3138152b6da8f7ebd178defaebe4b910ea3b16703"
+
     st.sidebar.markdown("""
     ### 🚀 Getting Started
     Provide details about your dream game, and the AI team will create a concept for you. Think about:
@@ -48,7 +59,7 @@ def setup_sidebar():
     - **Art style and visuals**
     - **Technical requirements**
     """)
-    return provider, api_key, replicate_api_key, deepseek_api_key
+    return provider, api_key, replicate_api_key, deepseek_api_key, image_model_id
 
 # Check API connection for text generation
 def check_text_api_connection(provider, api_key):
@@ -74,11 +85,11 @@ def check_text_api_connection(provider, api_key):
     return False
 
 # Check API connection for image generation
-def check_image_api_connection(replicate_api_key):
+def check_image_api_connection(replicate_api_key, image_model_id):
     try:
         os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
         replicate.run(
-            "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
+            image_model_id,
             input={"prompt": "Test connection", "num_outputs": 1}
         )
         return True
@@ -187,12 +198,12 @@ def generate_with_deepseek(prompt, api_key):
         st.error(f"Text generation failed (DeepSeek): {e}")
         return f"Fallback Text for prompt: {prompt}"
 
-# Generate image using Replicate (ByteDance SDXL-Lightning-4Step) with fallback
-def generate_image_with_replicate(prompt, api_key):
+# Generate image using Replicate with fallback
+def generate_image_with_replicate(prompt, api_key, image_model_id):
     try:
         os.environ["REPLICATE_API_TOKEN"] = api_key
         output = replicate.run(
-            "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
+            image_model_id,
             input={
                 "prompt": prompt,
                 "num_outputs": 1,
@@ -210,7 +221,6 @@ def generate_image_with_replicate(prompt, api_key):
 
 # Validate and display the image (or fallback text)
 def display_image(image_data):
-    # If the returned data starts with 'http', assume it's a URL and try to display the image.
     if image_data.startswith("http"):
         try:
             response = requests.get(image_data)
@@ -224,14 +234,14 @@ def display_image(image_data):
 
 # Main function
 def main():
-    provider, openai_api_key, replicate_api_key, deepseek_api_key = setup_sidebar()
+    provider, openai_api_key, replicate_api_key, deepseek_api_key, image_model_id = setup_sidebar()
     setup_main_ui()
     inputs = get_game_details()
 
     # API Check Button
     if st.sidebar.button("🔍 Check API Connections"):
         text_api_connected = check_text_api_connection(provider, openai_api_key if provider == "OpenAI" else deepseek_api_key)
-        image_api_connected = check_image_api_connection(replicate_api_key)
+        image_api_connected = check_image_api_connection(replicate_api_key, image_model_id)
         if text_api_connected:
             st.sidebar.success("✅ Text API Connected")
         else:
@@ -271,7 +281,7 @@ Create a game concept with:
             st.session_state.output['image_urls'] = []
             for i in range(inputs['num_stages']):
                 image_prompt = f"{inputs['vibe']}, {inputs['art_style']}, {', '.join(inputs['mood'])}, Level {i+1}"
-                image_data = generate_image_with_replicate(image_prompt, replicate_api_key)
+                image_data = generate_image_with_replicate(image_prompt, replicate_api_key, image_model_id)
                 st.session_state.output['image_urls'].append(image_data)
             
             # Generate main character sheets
