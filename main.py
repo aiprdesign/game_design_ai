@@ -45,7 +45,8 @@ def setup_sidebar():
     if img_model_choice == "ByteDance SDXL Lightning 4Step":
         image_model_id = "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637"
     else:
-        image_model_id = "any-comfyui-workflow:ac793ee8fe34411d9cb3b0b3138152b6da8f7ebd178defaebe4b910ea3b16703"
+        # Updated model identifier with owner "fofr"
+        image_model_id = "fofr/any-comfyui-workflow:ac793ee8fe34411d9cb3b0b3138152b6da8f7ebd178defaebe4b910ea3b16703"
         
     st.sidebar.markdown("""
     ### 🚀 Getting Started
