@@ -6,7 +6,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-# Initialize session state
+# Initialize session state for outputs
 if 'output' not in st.session_state:
     st.session_state.output = {
         'story': '',
@@ -15,18 +15,18 @@ if 'output' not in st.session_state:
         'gdd': ''
     }
 
-# Sidebar for API keys and settings
+# Sidebar: API keys and settings
 def setup_sidebar():
     st.sidebar.title("🔑 API Keys and Settings")
     
-    # Select text generation provider; default now set to DeepSeek
+    # Select text generation provider (default = DeepSeek)
     provider = st.sidebar.selectbox(
         "Select Text Generation Provider", 
         ["DeepSeek", "OpenAI"],
         index=0  # Default to DeepSeek
     )
     
-    # API key inputs based on provider
+    # API key input based on provider selection
     if provider == "DeepSeek":
         deepseek_api_key = st.sidebar.text_input("Enter your DeepSeek API Key", type="password")
         openai_api_key = None
@@ -34,9 +34,10 @@ def setup_sidebar():
         openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
         deepseek_api_key = None
 
+    # Replicate API key (must be provided)
     replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
     
-    # Dropdown for image generation model selection with three options
+    # Dropdown for image generation model selection
     img_model_choice = st.sidebar.selectbox(
         "Select Image Generation Model",
         ["ByteDance SDXL Lightning 4Step", "Any ComfyUI Workflow", "Stability AI SDXL"],
@@ -80,6 +81,9 @@ def check_text_api_connection(provider, api_key, deepseek_api_key):
 
 # Check image API connection
 def check_image_api_connection(replicate_api_key, image_model_id):
+    if not replicate_api_key:
+        st.error("Please enter your Replicate API Key.")
+        return False
     try:
         os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
         replicate.run(
@@ -91,7 +95,7 @@ def check_image_api_connection(replicate_api_key, image_model_id):
         st.error(f"Replicate API connection failed: {e}")
         return False
 
-# Main UI
+# Main UI header
 def setup_main_ui():
     st.title("🎮 AI-Powered Game Design Studio")
     st.markdown("Welcome! Share your game ideas and get a complete concept.")
@@ -188,7 +192,7 @@ def generate_with_openai(prompt, api_key):
         return f"Fallback Text for prompt: {prompt}"
 
 def generate_with_deepseek(prompt, api_key):
-    # DeepSeek placeholder function; in production replace with actual API call.
+    # Placeholder DeepSeek function; replace with actual API call as needed.
     return f"DeepSeek response for: {prompt}"
 
 # Image generation function
@@ -211,7 +215,7 @@ def generate_image_with_replicate(prompt, api_key, image_model_id):
         st.error(f"Image generation failed: {e}")
         return f"Stage Description: {prompt}"
 
-# Display image (or fallback text)
+# Display image or fallback text
 def display_image(image_data):
     if image_data.startswith("http"):
         try:
@@ -297,6 +301,7 @@ def main():
         
         st.success("Game concept generated!")
         
+        # Display results in tabs
         tab1, tab2, tab3, tab4 = st.tabs(["Story Design", "Game Levels", "Main Characters", "GDD"])
         with tab1:
             st.subheader("📖 Story Design")
