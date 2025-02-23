@@ -18,28 +18,158 @@ if 'output' not in st.session_state:
         'main_image_url': ''
     }
 
-# Previous functions remain the same until generate_gdd_prompt
+def setup_sidebar():
+    st.sidebar.title("🔑 API Keys")
+    
+    provider = st.sidebar.selectbox(
+        "Select Text Generation Provider",
+        ["DeepSeek", "OpenAI"],
+        index=0
+    )
+    
+    if provider == "OpenAI":
+        api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
+        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
+        deepseek_api_key = None
+    else:
+        deepseek_api_key = st.sidebar.text_input("Enter your DeepSeek API Key", type="password")
+        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
+        api_key = None
 
-def generate_stages_prompt(inputs):
-    return f"""Create 8 distinct game stages for a {inputs['genre']} game set in a {inputs['vibe']} world with {inputs['art_style']} art style.
-    For each stage, provide:
-    1. Stage name
-    2. Environmental description
-    3. Key challenges
-    4. Unique mechanics
-    5. Boss or main challenge
-    6. Rewards/progression
-    7. Connection to main story
-    8. Atmosphere and mood
+    st.sidebar.markdown("""
+    ### 🚀 Getting Started
+    Provide details about your dream game, and the AI team will create:
+    - **Game Design Document**
+    - **Character Sheets**
+    - **World Design**
+    - **Concept Art**
+    """)
+    return provider, api_key, replicate_api_key, deepseek_api_key
 
-    The stages should progress in difficulty and complexity, building up to an epic finale.
-    Consider the {inputs['perspective']} perspective and incorporate the following mechanics: {', '.join(inputs['mechanics']) if inputs['mechanics'] else 'basic gameplay'}.
-    Target audience: {inputs['audience']}
-    Overall mood: {', '.join(inputs['mood']) if inputs['mood'] else 'atmospheric'}
-    """
+def setup_main_ui():
+    st.title("🎮 AI-Powered Game Design Studio")
+    st.markdown("""
+    Welcome to your AI-powered game design studio! Share your vision, and our AI team will craft a detailed game design document with characters, world design, and concept art.
+    """)
 
-def generate_stage_image_prompt(stage_data, inputs):
-    return f"Game level concept art, {inputs['art_style']} style, {inputs['vibe']}, {stage_data['name']}, {stage_data['environment']}, {', '.join(inputs['mood']) if inputs['mood'] else 'atmospheric'}, detailed environment, game level, highly detailed"
+def get_game_details():
+    st.subheader("📝 Game Details")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        vibe = st.selectbox(
+            "Game Vibe",
+            ["Epic fantasy with dragons", "Post-apocalyptic wasteland", "Cyberpunk city", "Medieval kingdom", "Space exploration"]
+        )
+        genre = st.selectbox("Genre", ["RPG", "Action", "Adventure", "Puzzle", "Strategy", "Simulation", "Platform", "Horror"])
+        audience = st.selectbox("Audience", ["Kids (7-12)", "Teens (13-17)", "Young Adults (18-25)", "Adults (26+)", "All Ages"])
+        perspective = st.selectbox("Perspective", ["First Person", "Third Person", "Top Down", "Side View", "Isometric"])
+        multiplayer = st.selectbox("Multiplayer", ["Single Player", "Local Co-op", "Online Multiplayer", "Both Local and Online"])
+
+    with col2:
+        goal = st.selectbox(
+            "Game Goal",
+            [
+                "Save the kingdom from eternal winter",
+                "Defeat the evil empire",
+                "Explore uncharted planets",
+                "Build and manage a thriving city",
+                "Survive in a post-apocalyptic world",
+                "Solve ancient mysteries",
+                "Become the greatest hero of all time"
+            ]
+        )
+        art_style = st.selectbox("Art Style", ["Realistic", "Cartoon", "Pixel Art", "Stylized", "Low Poly", "Anime", "Hand-drawn"])
+        platforms = st.multiselect("Platforms", ["PC", "Mobile", "PlayStation", "Xbox", "Nintendo Switch", "Web Browser"])
+        dev_time = st.slider("Development Time (months)", 1, 36, 12)
+
+    st.subheader("🎨 Additional Preferences")
+    col3, col4 = st.columns(2)
+
+    with col3:
+        mechanics = st.multiselect(
+            "Core Mechanics",
+            ["Combat", "Exploration", "Puzzle Solving", "Resource Management", "Base Building", "Stealth", "Racing", "Crafting"]
+        )
+        mood = st.multiselect(
+            "Mood/Atmosphere",
+            ["Epic", "Mysterious", "Peaceful", "Tense", "Humorous", "Dark", "Whimsical", "Scary"]
+        )
+
+    with col4:
+        inspirations = st.text_area("Inspirations (comma-separated)", "")
+        unique_features = st.text_area("Unique Features", "")
+
+    st.subheader("👥 Character Development")
+    protagonist_traits = st.multiselect(
+        "Protagonist Traits",
+        ["Brave", "Clever", "Strong", "Mysterious", "Resourceful", "Wise", "Quick-witted", "Determined"]
+    )
+    
+    villain_type = st.selectbox(
+        "Main Villain Type",
+        ["Evil Overlord", "Corrupt Corporation", "Ancient Evil", "Rival Hero", "Natural Disaster", "AI Gone Rogue", "Hidden Conspiracy"]
+    )
+    
+    num_bosses = st.slider("Number of Boss Encounters", 1, 10, 3)
+    num_npcs = st.slider("Number of Key NPCs", 1, 20, 5)
+
+    detail_level = st.selectbox("Detail Level", ["Low", "Medium", "High"])
+
+    return {
+        "vibe": vibe,
+        "genre": genre,
+        "goal": goal,
+        "audience": audience,
+        "perspective": perspective,
+        "multiplayer": multiplayer,
+        "art_style": art_style,
+        "platforms": platforms,
+        "dev_time": dev_time,
+        "mechanics": mechanics,
+        "mood": mood,
+        "inspirations": inspirations,
+        "unique_features": unique_features,
+        "protagonist_traits": protagonist_traits,
+        "villain_type": villain_type,
+        "num_bosses": num_bosses,
+        "num_npcs": num_npcs,
+        "detail_level": detail_level
+    }
+
+def check_text_api_connection(provider, api_key):
+    if provider == "OpenAI":
+        try:
+            openai.api_key = api_key
+            openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": "Test connection"}],
+                max_tokens=5
+            )
+            return True
+        except Exception as e:
+            st.error(f"OpenAI API connection failed: {str(e)}")
+            return False
+    elif provider == "DeepSeek":
+        try:
+            # Replace with actual DeepSeek API test
+            return True
+        except Exception as e:
+            st.error(f"DeepSeek API connection failed: {str(e)}")
+            return False
+    return False
+
+def check_image_api_connection(replicate_api_key):
+    try:
+        os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
+        replicate.run(
+            "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
+            input={"prompt": "Test connection", "num_outputs": 1}
+        )
+        return True
+    except Exception as e:
+        st.error(f"Replicate API connection failed: {str(e)}")
+        return False
 
 def generate_with_openai(prompt, api_key):
     openai.api_key = api_key
@@ -51,81 +181,95 @@ def generate_with_openai(prompt, api_key):
     return response.choices[0].message['content']
 
 def generate_with_deepseek(prompt, api_key):
-    # Placeholder for DeepSeek API implementation
-    # For now, let's create a more structured response
-    return f"""
+    # This is a placeholder that returns structured sample data
+    return """
     Stage 1: The Awakening
-    - Environment: Ancient ruins emerging from morning mist
-    - Challenges: Basic movement and core mechanics tutorial
-    - Mechanics: Introduction to basic abilities
-    - Boss: Training Guardian
-    - Rewards: First basic ability unlock
-    - Story: Player character awakens to their destiny
-    - Atmosphere: Mysterious and peaceful
+    Environment: Ancient ruins emerging from morning mist
+    Challenges: Basic movement and core mechanics tutorial
+    Mechanics: Introduction to basic abilities
+    Boss: Training Guardian
+    Rewards: First ability unlock
+    Story: Player awakens to their destiny
+    Atmosphere: Mysterious and peaceful
 
-    Stage 2: The Forgotten Valley
-    - Environment: Overgrown valley with abandoned structures
-    - Challenges: First real combat encounters
-    - Mechanics: Combat basics and exploration
-    - Boss: Valley Keeper
-    - Rewards: Enhanced movement ability
-    - Story: Discovering the world's history
-    - Atmosphere: Serene but dangerous
+    Stage 2: The Valley of Trials
+    Environment: Lush valley with ancient structures
+    Challenges: First combat encounters
+    Mechanics: Combat basics
+    Boss: Valley Keeper
+    Rewards: Combat ability
+    Story: First major challenge
+    Atmosphere: Serene but dangerous
 
-    Stage 3: The Underground Network
-    - Environment: Ancient technological ruins
-    - Challenges: Complex platforming and puzzles
-    - Mechanics: New puzzle-solving abilities
-    - Boss: Security System Alpha
-    - Rewards: Puzzle-solving tool
-    - Story: Uncovering ancient technology
-    - Atmosphere: Dark and mysterious
+    Stage 3: The Deep Caverns
+    Environment: Underground crystal caves
+    Challenges: Puzzle solving
+    Mechanics: Special abilities
+    Boss: Cave Dweller
+    Rewards: New power
+    Story: Ancient secrets revealed
+    Atmosphere: Mysterious
 
-    Stage 4: The Storm Plains
-    - Environment: Lightning-struck wastelands
-    - Challenges: Environmental hazards
-    - Mechanics: Weather interaction abilities
-    - Boss: Storm Elemental
-    - Rewards: Weather control power
-    - Story: Learning about the world's corruption
-    - Atmosphere: Wild and electric
+    Stage 4: The Skybridge
+    Environment: Floating islands
+    Challenges: Platform navigation
+    Mechanics: Advanced movement
+    Boss: Wind Rider
+    Rewards: Movement upgrade
+    Story: World expansion
+    Atmosphere: Breathtaking
 
-    Stage 5: The Crystal Caverns
-    - Environment: Massive crystalline cave system
-    - Challenges: Light-based puzzles
-    - Mechanics: Crystal manipulation
-    - Boss: Crystal Colossus
-    - Rewards: Light bending ability
-    - Story: Finding the source of power
-    - Atmosphere: Beautiful but treacherous
+    Stage 5: The Dark Forest
+    Environment: Twisted woods
+    Challenges: Stealth sections
+    Mechanics: Stealth abilities
+    Boss: Shadow Hunter
+    Rewards: Stealth power
+    Story: Dark revelation
+    Atmosphere: Tense
 
-    Stage 6: The Sky Citadel
-    - Environment: Floating ruins in the clouds
-    - Challenges: Vertical traversal and flying enemies
-    - Mechanics: Advanced movement abilities
-    - Boss: Wind Dragon
-    - Rewards: Flight capability
-    - Story: Approaching the main antagonist's domain
-    - Atmosphere: Majestic and dangerous
+    Stage 6: The Frozen Peak
+    Environment: Snow-covered mountains
+    Challenges: Survival mechanics
+    Mechanics: Environmental interaction
+    Boss: Frost Giant
+    Rewards: Resistance ability
+    Story: Major plot twist
+    Atmosphere: Harsh
 
-    Stage 7: The Corruption Core
-    - Environment: Twisted landscape of corruption
-    - Challenges: Survival and corruption mechanics
-    - Mechanics: Corruption resistance abilities
-    - Boss: Corrupted Guardian
-    - Rewards: Final power upgrade
-    - Story: Direct confrontation with evil
-    - Atmosphere: Dark and oppressive
+    Stage 7: The Burning City
+    Environment: Ruined metropolis
+    Challenges: Complex combat
+    Mechanics: All abilities combined
+    Boss: City Guardian
+    Rewards: Ultimate power
+    Story: Final revelation
+    Atmosphere: Intense
 
-    Stage 8: The Final Ascent
-    - Environment: Reality-bending final area
-    - Challenges: Using all learned abilities
-    - Mechanics: Combination of all previous mechanics
-    - Boss: Final Boss with multiple phases
-    - Rewards: Game completion
-    - Story: Final battle and resolution
-    - Atmosphere: Epic and climactic
+    Stage 8: The Final Tower
+    Environment: Reality-bending tower
+    Challenges: Ultimate test
+    Mechanics: Mastery required
+    Boss: Final Boss
+    Rewards: Story conclusion
+    Story: Final battle
+    Atmosphere: Epic
     """
+
+def generate_image_with_replicate(prompt, api_key):
+    os.environ["REPLICATE_API_TOKEN"] = api_key
+    output = replicate.run(
+        "bytedance/sdxl-lightning-4step:5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
+        input={
+            "prompt": prompt,
+            "num_outputs": 1,
+            "width": 1024,
+            "height": 1024,
+            "scheduler": "K_EULER",
+            "num_inference_steps": 4
+        }
+    )
+    return output[0]
 
 def display_image_safely(image_url, caption):
     try:
@@ -141,9 +285,8 @@ def display_image_safely(image_url, caption):
 def parse_stages(stages_text):
     stages = []
     current_stage = {}
-    lines = stages_text.strip().split('\n')
     
-    for line in lines:
+    for line in stages_text.strip().split('\n'):
         line = line.strip()
         if not line:
             continue
@@ -152,14 +295,28 @@ def parse_stages(stages_text):
             if current_stage:
                 stages.append(current_stage)
             current_stage = {'name': line.split(':', 1)[1].strip()}
-        elif line.startswith('-'):
-            key, value = line[1:].split(':', 1)
+        elif ':' in line:
+            key, value = line.split(':', 1)
             current_stage[key.strip().lower()] = value.strip()
             
     if current_stage:
         stages.append(current_stage)
         
     return stages
+
+def generate_gdd_prompt(inputs):
+    return f"""Create a detailed Game Design Document with:
+    - Game Vibe: {inputs['vibe']}
+    - Genre: {inputs['genre']}
+    - Goal: {inputs['goal']}
+    - Audience: {inputs['audience']}
+    - Perspective: {inputs['perspective']}
+    - Art Style: {inputs['art_style']}
+    Include sections for story, characters, gameplay mechanics, and world design.
+    """
+
+def generate_stage_image_prompt(stage_data, inputs):
+    return f"Game level concept art, {inputs['art_style']} style, {inputs['vibe']}, {stage_data.get('environment', '')}, atmospheric, detailed environment"
 
 def main():
     provider, openai_api_key, replicate_api_key, deepseek_api_key = setup_sidebar()
@@ -187,31 +344,22 @@ def main():
             try:
                 # Generate GDD
                 gdd_prompt = generate_gdd_prompt(inputs)
-                stages_prompt = generate_stages_prompt(inputs)
                 
                 if provider == "OpenAI":
                     st.session_state.output['game_design'] = generate_with_openai(gdd_prompt, openai_api_key)
-                    stages_text = generate_with_openai(stages_prompt, openai_api_key)
+                    stages_text = generate_with_openai("Create 8 game stages with environment, challenges, mechanics, boss, rewards, story, and atmosphere for each stage.", openai_api_key)
                 else:
                     st.session_state.output['game_design'] = generate_with_deepseek(gdd_prompt, deepseek_api_key)
-                    stages_text = generate_with_deepseek(stages_prompt, deepseek_api_key)
+                    stages_text = generate_with_deepseek("Create 8 game stages", deepseek_api_key)
 
                 # Parse stages
                 st.session_state.output['stages'] = parse_stages(stages_text)
 
-                # Generate main concept art
-                image_prompt = f"{inputs['vibe']}, {inputs['art_style']}, {', '.join(inputs['mood']) if inputs['mood'] else 'atmospheric'}"
-                st.session_state.output['main_image_url'] = generate_image_with_replicate(image_prompt, replicate_api_key)
-                
+                # Display outputs
                 st.success("🎉 Game Design Document generated successfully!")
 
-                # Display outputs
                 with st.expander("📖 Game Design Document", expanded=True):
                     st.markdown(st.session_state.output['game_design'])
-
-                with st.expander("🖼️ Main Concept Art"):
-                    if st.session_state.output['main_image_url']:
-                        display_image_safely(st.session_state.output['main_image_url'], "Main Game Concept Art")
 
                 # Display stages with images
                 st.subheader("🎮 Game Stages")
@@ -230,9 +378,3 @@ def main():
                                 stage_image = generate_image_with_replicate(image_prompt, replicate_api_key)
                                 display_image_safely(stage_image, f"Concept Art for Stage {i}")
                                 time.sleep(1)  # Prevent rate limiting
-                        
-            except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
-
-if __name__ == "__main__":
-    main()
