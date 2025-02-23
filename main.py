@@ -66,7 +66,7 @@ def check_text_api_connection(provider, api_key):
             return False
     elif provider == "DeepSeek":
         try:
-            # Replace with an actual DeepSeek test call if available
+            # Replace with actual DeepSeek test call if available
             return True
         except Exception as e:
             st.error(f"DeepSeek API connection failed: {e}")
@@ -104,7 +104,8 @@ def get_game_details():
             ["Epic fantasy with dragons", "Post-apocalyptic wasteland", "Cyberpunk city", "Medieval kingdom", "Space exploration"]
         )
         genre = st.selectbox("Genre", ["RPG", "Action", "Adventure", "Puzzle", "Strategy", "Simulation", "Platform", "Horror"])
-        audience = st.selectbox("Audience", ["Teens (13-17)", "Young Adults (18-25)", "Adults (26+)", "All Ages"])
+        # Removed "Teens (13-17)" option from the audience list
+        audience = st.selectbox("Audience", ["Young Adults (18-25)", "Adults (26+)", "All Ages"])
         perspective = st.selectbox("Perspective", ["First Person", "Third Person", "Top Down", "Side View", "Isometric"])
         multiplayer = st.selectbox("Multiplayer", ["Single Player", "Local Co-op", "Online Multiplayer", "Both Local and Online"])
 
@@ -163,22 +164,30 @@ def get_game_details():
         "detail_level": detail_level
     }
 
-# Generate text using OpenAI
+# Generate text using OpenAI with fallback
 def generate_with_openai(prompt, api_key):
-    openai.api_key = api_key
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=1000
-    )
-    return response.choices[0].message['content']
+    try:
+        openai.api_key = api_key
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1000
+        )
+        return response.choices[0].message['content']
+    except Exception as e:
+        st.error(f"Text generation failed (OpenAI): {e}")
+        return f"Fallback Text for prompt: {prompt}"
 
-# Generate text using DeepSeek
+# Generate text using DeepSeek with fallback
 def generate_with_deepseek(prompt, api_key):
-    # Replace with actual DeepSeek API call
-    return f"DeepSeek response for: {prompt}"
+    try:
+        # Replace with actual DeepSeek API call
+        return f"DeepSeek response for: {prompt}"
+    except Exception as e:
+        st.error(f"Text generation failed (DeepSeek): {e}")
+        return f"Fallback Text for prompt: {prompt}"
 
-# Generate image using Replicate (ByteDance SDXL-Lightning-4Step)
+# Generate image using Replicate (ByteDance SDXL-Lightning-4Step) with fallback
 def generate_image_with_replicate(prompt, api_key):
     try:
         os.environ["REPLICATE_API_TOKEN"] = api_key
@@ -196,20 +205,22 @@ def generate_image_with_replicate(prompt, api_key):
         return output[0]
     except Exception as e:
         st.error(f"Image generation failed: {e}")
-        return None
+        # Fallback: Return a text description as a placeholder for the image
+        return f"Stage Description: {prompt}"
 
-# Validate and display the image
-def display_image(image_url):
-    if image_url is None:
-        st.error("No image URL provided.")
-        return
-    try:
-        response = requests.get(image_url)
-        response.raise_for_status()  # Raise an error for bad responses
-        image = Image.open(BytesIO(response.content))
-        st.image(image, caption="Generated Game Art")
-    except Exception as e:
-        st.error(f"Failed to load image: {e}")
+# Validate and display the image (or fallback text)
+def display_image(image_data):
+    # If the returned data starts with 'http', assume it's a URL and try to display the image.
+    if image_data.startswith("http"):
+        try:
+            response = requests.get(image_data)
+            response.raise_for_status()
+            image = Image.open(BytesIO(response.content))
+            st.image(image, caption="Generated Game Art")
+        except Exception as e:
+            st.error(f"Failed to load image: {e}")
+    else:
+        st.markdown(f"**{image_data}**")
 
 # Main function
 def main():
@@ -232,7 +243,7 @@ def main():
 
     if st.button("🚀 Generate Game Concept"):
         with st.spinner("🧠 AI team is brainstorming your game concept..."):
-            # Generate game concept
+            # Generate game concept story
             prompt = f"""
             Create a game concept with:
             - Vibe: {inputs['vibe']}
@@ -255,53 +266,48 @@ def main():
                 st.session_state.output['story'] = generate_with_openai(prompt, openai_api_key)
             else:
                 st.session_state.output['story'] = generate_with_deepseek(prompt, deepseek_api_key)
-
-            # Generate images for game levels
+            
+            # Generate images for game levels (or fallback stage descriptions)
             st.session_state.output['image_urls'] = []
             for i in range(inputs['num_stages']):
                 image_prompt = f"{inputs['vibe']}, {inputs['art_style']}, {', '.join(inputs['mood'])}, Level {i+1}"
-                image_url = generate_image_with_replicate(image_prompt, replicate_api_key)
-                if image_url:
-                    st.session_state.output['image_urls'].append(image_url)
-
+                image_data = generate_image_with_replicate(image_prompt, replicate_api_key)
+                st.session_state.output['image_urls'].append(image_data)
+            
             # Generate main character sheets
             st.session_state.output['characters'] = []
-            for i in range(3):  # Generate 3 main characters
+            for i in range(3):
                 character_prompt = f"Create a main character for a {inputs['genre']} game with a {inputs['vibe']} vibe."
                 if provider == "OpenAI":
                     character_sheet = generate_with_openai(character_prompt, openai_api_key)
                 else:
                     character_sheet = generate_with_deepseek(character_prompt, deepseek_api_key)
                 st.session_state.output['characters'].append(character_sheet)
-
+            
             # Generate Game Design Document (GDD)
             gdd_prompt = f"Create a Game Design Document (GDD) for a {inputs['genre']} game with a {inputs['vibe']} vibe."
             if provider == "OpenAI":
                 st.session_state.output['gdd'] = generate_with_openai(gdd_prompt, openai_api_key)
             else:
                 st.session_state.output['gdd'] = generate_with_deepseek(gdd_prompt, deepseek_api_key)
-
+        
         st.success("🎉 Game concept generated successfully!")
-
+        
         # Display outputs in tabs
         tab1, tab2, tab3, tab4 = st.tabs(["Story Design", "Game Levels", "Main Characters", "GDD"])
-
         with tab1:
             st.subheader("📖 Story Design")
             st.markdown(st.session_state.output['story'])
-
         with tab2:
             st.subheader("🎮 Game Levels")
-            for i, image_url in enumerate(st.session_state.output['image_urls']):
+            for i, image_data in enumerate(st.session_state.output['image_urls']):
                 st.markdown(f"### Level {i+1}")
-                display_image(image_url)
-
+                display_image(image_data)
         with tab3:
             st.subheader("👤 Main Characters")
             for i, character_sheet in enumerate(st.session_state.output['characters']):
                 st.markdown(f"### Character {i+1}")
                 st.markdown(character_sheet)
-
         with tab4:
             st.subheader("📄 Game Design Document (GDD)")
             st.markdown(st.session_state.output['gdd'])
